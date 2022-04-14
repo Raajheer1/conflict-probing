@@ -1,9 +1,7 @@
 package main
 
 import (
-	"bufio"
 	"encoding/json"
-	"encoding/xml"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -14,19 +12,20 @@ import (
 )
 
 type FlightPlan struct {
-	Rules     string `json:"flight_rules"`
-	Aircraft  string `json:"aircraft_faa"`
-	Departure string `json:"departure"`
-	Arrival   string `json:"arrival"`
-	Alternate string `json:"alternate"`
-	TAS       string `json:"cruise_tas"`
-	Altitude  string `json:"altitude"`
-	Alt       int    `json:"alt"`
-	Deptime   string `json:"deptime"`
-	ERT       string `json:"enroute_time"`
-	Fuel      string `json:"fuel_time"`
-	Remarks   string `json:"remarks"`
-	Route     string `json:"route"`
+	Rules     string   `json:"flight_rules"`
+	Aircraft  string   `json:"aircraft_faa"`
+	Departure string   `json:"departure"`
+	Arrival   string   `json:"arrival"`
+	Alternate string   `json:"alternate"`
+	TAS       string   `json:"cruise_tas"`
+	Altitude  string   `json:"altitude"`
+	Alt       int      `json:"alt"`
+	Deptime   string   `json:"deptime"`
+	ERT       string   `json:"enroute_time"`
+	Fuel      string   `json:"fuel_time"`
+	Remarks   string   `json:"remarks"`
+	Route     string   `json:"route"`
+	RteParse  []string `json:"parsed_route"`
 }
 
 type Aircraft struct {
@@ -51,33 +50,15 @@ type Aircrafts struct {
 	Aircrafts []Aircraft `json:"pilots"`
 }
 
-type Location struct {
-	Lon float64 `xml:"Lon,attr"`
-	Lat float64 `xml:"Lat,attr"`
-}
-
-type Fix struct {
-	Name     string   `xml:"ID,attr"`
-	Location Location `xml:"Location"`
-}
-
-type Fixes struct {
-	Fixes []Fix `xml:"Waypoint"`
-}
-
-type Airway struct {
-	Name  string
-	Fixes []string
-}
-
-var fixes map[string]Location = parseFIX("Waypoints.xml")
-var airways map[string][]string = parseAWY("AWY.txt")
-
 func main() {
 	fmt.Println("Initializing...")
 	start := time.Now()
 	//Grab initial aircraft data.
 	var aircraft Aircrafts = fetchPlanes()
+	fmt.Println()
+	for _, plane := range aircraft.Aircrafts {
+		plane.Flightplan.RteParse = Routeparse(plane.Flightplan.Departure + " " + plane.Flightplan.Route + " " + plane.Flightplan.Arrival)
+	}
 
 	//Wait for next cycle
 	time.Sleep(20 * time.Second)
@@ -85,7 +66,11 @@ func main() {
 	//GRAB next cycle
 
 	//Compare Aircraft / Check for changes
-	Differences(aircraft.Aircrafts, newAircraft.Aircrafts)
+	current := differences(aircraft.Aircrafts, newAircraft.Aircrafts)
+
+	output, _ := json.MarshalIndent(current, "", " ")
+	file, _ := os.Create("output.json")
+	_, _ = file.WriteString(string(output))
 
 	duration := time.Since(start)
 	fmt.Print("Runtime: ")
@@ -113,6 +98,18 @@ func fetchPlanes() Aircrafts {
 		for i := 0; i < len(aircraft.Aircrafts); i++ {
 			if aircraft.Aircrafts[i].Flightplan.Rules == "I" {
 				altConversion(&aircraft.Aircrafts[i])
+			}
+			if aircraft.Aircrafts[i].Flightplan.Departure == "" || aircraft.Aircrafts[i].Flightplan.Arrival == "" {
+				aircraft.Aircrafts = append(aircraft.Aircrafts[:i], aircraft.Aircrafts[i+1:]...)
+				i--
+			} else {
+				if aircraft.Aircrafts[i].Flightplan.Departure[:1] != "K" {
+					aircraft.Aircrafts = append(aircraft.Aircrafts[:i], aircraft.Aircrafts[i+1:]...)
+					i--
+				} else if aircraft.Aircrafts[i].Flightplan.Arrival[:1] != "K" {
+					aircraft.Aircrafts = append(aircraft.Aircrafts[:i], aircraft.Aircrafts[i+1:]...)
+					i--
+				}
 			}
 		}
 
@@ -155,54 +152,4 @@ func flightStatus(aircraft *Aircrafts) {
 			}
 		}
 	}
-}
-
-//Parses the latest AIRAC FIXES
-func parseFIX(filename string) map[string]Location {
-	xmlFile, err := os.Open(filename)
-	if err != nil {
-		fmt.Println(err)
-	}
-	defer xmlFile.Close()
-	byteValue, _ := ioutil.ReadAll(xmlFile)
-
-	var fixesXML Fixes
-	xml.Unmarshal(byteValue, &fixesXML)
-
-	fixesmap := make(map[string]Location)
-
-	for i := 0; i < len(fixesXML.Fixes); i++ {
-		name := fixesXML.Fixes[i].Name
-		loc := fixesXML.Fixes[i].Location
-		fixesmap[name] = loc
-	}
-
-	return fixesmap
-}
-
-//Parses the latest AIRAC AWYs
-func parseAWY(filename string) map[string][]string {
-	txtFile, err := os.Open(filename)
-
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	defer txtFile.Close()
-	scanner := bufio.NewScanner(txtFile)
-	scanner.Split(bufio.ScanLines)
-	var txtlines []string
-	for scanner.Scan() {
-		txtlines = append(txtlines, scanner.Text())
-	}
-
-	airwaysmap := make(map[string][]string)
-	for _, eachline := range txtlines {
-		name := eachline[1:strings.Index(eachline, "F")]
-		fixeslist := strings.Fields(eachline[strings.Index(eachline, "F")+6:])
-
-		airwaysmap[name] = fixeslist
-	}
-
-	return airwaysmap
 }
