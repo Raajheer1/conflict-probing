@@ -33,7 +33,9 @@ type Aircraft struct {
 	CID        uint       `json:"cid"`
 	Callsign   string     `json:"callsign"`
 	Latitude   float32    `json:"latitude"`
+	OldLat     float32    `json:"OldLat"`
 	Longitude  float32    `json:"longitude"`
+	OldLon     float32    `json:"OldLon"`
 	Altitude   int        `json:"altitude"`
 	Groudspeed uint       `json:"groudspeed"`
 	Heading    uint       `json:"heading"`
@@ -75,13 +77,15 @@ func main() {
 	fmt.Println("Initializing...")
 	start := time.Now()
 	//Grab initial aircraft data.
-	var aircraft Aircrafts = initialize()
+	var aircraft Aircrafts = fetchPlanes()
 
 	//Wait for next cycle
 	time.Sleep(20 * time.Second)
+	var newAircraft Aircrafts = fetchPlanes()
 	//GRAB next cycle
 
 	//Compare Aircraft / Check for changes
+	Differences(aircraft.Aircrafts, newAircraft.Aircrafts)
 
 	duration := time.Since(start)
 	fmt.Print("Runtime: ")
@@ -89,7 +93,7 @@ func main() {
 
 }
 
-func initialize() Aircrafts {
+func fetchPlanes() Aircrafts {
 	resp, err := http.Get("https://data.vatsim.net/v3/vatsim-data.json")
 	if err != nil {
 		fmt.Printf("HTTP GET error: ", err)
@@ -112,15 +116,8 @@ func initialize() Aircrafts {
 			}
 		}
 
-		//for i := 0; i < len(aircraft.Aircrafts); i++ {
-		//	if aircraft.Aircrafts[i].Flightplan.Route != "" && aircraft.Aircrafts[i].Flightplan.Rules == "I" && aircraft.Aircrafts[i].Flightplan.Arrival == "KDEN" {
-		//		fmt.Println("Callsign: " + aircraft.Aircrafts[i].Callsign)
-		//		fmt.Println("Route: " + aircraft.Aircrafts[i].Flightplan.Departure + " " + aircraft.Aircrafts[i].Flightplan.Route + " " + aircraft.Aircrafts[i].Flightplan.Arrival)
-		//		aircraft.Aircrafts[i].Distance = Routedist(Routeparse(aircraft.Aircrafts[i].Flightplan.Departure + " " + aircraft.Aircrafts[i].Flightplan.Route + " " + aircraft.Aircrafts[i].Flightplan.Arrival))
-		//		fmt.Printf("Distance: %.2f", aircraft.Aircrafts[i].Distance)
-		//		fmt.Println("\n---")
-		//	}
-		//}
+		//TODO- Add filter for aircraft within the USA
+
 		flightStatus(&aircraft)
 		return aircraft
 	}
