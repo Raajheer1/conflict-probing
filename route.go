@@ -13,8 +13,8 @@ import (
 )
 
 type Location struct {
-	Lon float64 `xml:"Lon,attr"`
-	Lat float64 `xml:"Lat,attr"`
+	Lon float64 `xml:"Lon,attr" json:"Lon"`
+	Lat float64 `xml:"Lat,attr" json:"Lat"`
 }
 
 type Fix struct {

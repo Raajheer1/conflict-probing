@@ -16,13 +16,8 @@ func differences(previous []Aircraft, current []Aircraft) []Aircraft {
 			if aircraft.Callsign == newaircraft.Callsign {
 				//Check for differences
 
-				//Checks to see if routes have not changed, if no change then copy over parsed route
-				if aircraft.Flightplan.Route == newaircraft.Flightplan.Route {
-					newaircraft.Flightplan.RteParse = aircraft.Flightplan.RteParse
-				} else {
-					//Routes have changed, reparse the route
-					newaircraft.Flightplan.RteParse = Routeparse(newaircraft.Flightplan.Departure + " " + newaircraft.Flightplan.Route + " " + newaircraft.Flightplan.Arrival)
-				}
+				newaircraft.Flightplan.RteParse = Routeparse(newaircraft.Flightplan.Departure + " " + newaircraft.Flightplan.Route + " " + newaircraft.Flightplan.Arrival)
+				//fmt.Println(strings.Join(Routeparse(newaircraft.Flightplan.Departure+" "+newaircraft.Flightplan.Route+" "+newaircraft.Flightplan.Arrival), " "))
 
 				temp := newaircraft
 				temp.OldLat = aircraft.Latitude

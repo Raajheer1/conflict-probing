@@ -1,0 +1,13 @@
+goroutine 1 [running]:
+main.removeIndex(...)
+        C:/Users/raajp/go/src/github.com/Raajheer1/conflict-probing/route.go:277
+main.Routeparse(0xc000e0f330, 0xb, 0x4, 0x961868, 0x1)
+        C:/Users/raajp/go/src/github.com/Raajheer1/conflict-probing/route.go:256 +0xc45
+main.main()
+        C:/Users/raajp/go/src/github.com/Raajheer1/conflict-probing/main.go:62 +0x2ab
+
+
+NAVY11 Error on Routeparse
+Route:  "route": "+",
+
+Need to add more error handling in Route Parse to prevent crashing

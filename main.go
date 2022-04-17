@@ -12,20 +12,22 @@ import (
 )
 
 type FlightPlan struct {
-	Rules     string   `json:"flight_rules"`
-	Aircraft  string   `json:"aircraft_faa"`
-	Departure string   `json:"departure"`
-	Arrival   string   `json:"arrival"`
-	Alternate string   `json:"alternate"`
-	TAS       string   `json:"cruise_tas"`
-	Altitude  string   `json:"altitude"`
-	Alt       int      `json:"alt"`
-	Deptime   string   `json:"deptime"`
-	ERT       string   `json:"enroute_time"`
-	Fuel      string   `json:"fuel_time"`
-	Remarks   string   `json:"remarks"`
-	Route     string   `json:"route"`
-	RteParse  []string `json:"parsed_route"`
+	Rules     string     `json:"flight_rules"`
+	Aircraft  string     `json:"aircraft_faa"`
+	Departure string     `json:"departure"`
+	Arrival   string     `json:"arrival"`
+	Alternate string     `json:"alternate"`
+	TAS       string     `json:"cruise_tas"`
+	Altitude  string     `json:"altitude"`
+	Alt       int        `json:"alt"`
+	Deptime   string     `json:"deptime"`
+	ERT       string     `json:"enroute_time"`
+	Fuel      string     `json:"fuel_time"`
+	Remarks   string     `json:"remarks"`
+	Route     string     `json:"route"`
+	RteParse  []string   `json:"parsed_route"`
+	Points    []Location `json:"points"`
+	DCT       string     `json:"direct"`
 }
 
 type Aircraft struct {
@@ -55,7 +57,6 @@ func main() {
 	start := time.Now()
 	//Grab initial aircraft data.
 	var aircraft Aircrafts = fetchPlanes()
-	fmt.Println()
 	for _, plane := range aircraft.Aircrafts {
 		plane.Flightplan.RteParse = Routeparse(plane.Flightplan.Departure + " " + plane.Flightplan.Route + " " + plane.Flightplan.Arrival)
 	}
@@ -67,6 +68,10 @@ func main() {
 
 	//Compare Aircraft / Check for changes
 	current := differences(aircraft.Aircrafts, newAircraft.Aircrafts)
+
+	for i := 0; i < len(current); i++ {
+		current[i].Flightplan.Points = points(current[i].Flightplan)
+	}
 
 	output, _ := json.MarshalIndent(current, "", " ")
 	file, _ := os.Create("output.json")
@@ -95,20 +100,65 @@ func fetchPlanes() Aircrafts {
 			fmt.Println(err)
 		}
 
+		//Filter out aircraft that are VFR
 		for i := 0; i < len(aircraft.Aircrafts); i++ {
+			fmt.Println(aircraft.Aircrafts[i].Callsign)
+			if aircraft.Aircrafts[i].Flightplan.Rules != "I" {
+				if len(aircraft.Aircrafts) > 2 {
+					aircraft.Aircrafts = append(aircraft.Aircrafts[:i], aircraft.Aircrafts[i+1:]...)
+					i--
+				} else {
+					if i == 1 {
+						aircraft.Aircrafts = aircraft.Aircrafts[:1]
+					} else {
+						aircraft.Aircrafts = aircraft.Aircrafts[2:]
+					}
+					i--
+				}
+				continue
+			}
 			if aircraft.Aircrafts[i].Flightplan.Rules == "I" {
 				altConversion(&aircraft.Aircrafts[i])
 			}
+
+			//This is causing issues for the last few aircraft
 			if aircraft.Aircrafts[i].Flightplan.Departure == "" || aircraft.Aircrafts[i].Flightplan.Arrival == "" {
-				aircraft.Aircrafts = append(aircraft.Aircrafts[:i], aircraft.Aircrafts[i+1:]...)
-				i--
+				if len(aircraft.Aircrafts) > 2 {
+					aircraft.Aircrafts = append(aircraft.Aircrafts[:i], aircraft.Aircrafts[i+1:]...)
+					i--
+				} else {
+					if i == 1 {
+						aircraft.Aircrafts = aircraft.Aircrafts[:1]
+					} else {
+						aircraft.Aircrafts = aircraft.Aircrafts[2:]
+					}
+					i--
+				}
 			} else {
 				if aircraft.Aircrafts[i].Flightplan.Departure[:1] != "K" {
-					aircraft.Aircrafts = append(aircraft.Aircrafts[:i], aircraft.Aircrafts[i+1:]...)
-					i--
+					if len(aircraft.Aircrafts) > 2 {
+						aircraft.Aircrafts = append(aircraft.Aircrafts[:i], aircraft.Aircrafts[i+1:]...)
+						i--
+					} else {
+						if i == 1 {
+							aircraft.Aircrafts = aircraft.Aircrafts[:1]
+						} else {
+							aircraft.Aircrafts = aircraft.Aircrafts[2:]
+						}
+						i--
+					}
 				} else if aircraft.Aircrafts[i].Flightplan.Arrival[:1] != "K" {
-					aircraft.Aircrafts = append(aircraft.Aircrafts[:i], aircraft.Aircrafts[i+1:]...)
-					i--
+					if len(aircraft.Aircrafts) > 2 {
+						aircraft.Aircrafts = append(aircraft.Aircrafts[:i], aircraft.Aircrafts[i+1:]...)
+						i--
+					} else {
+						if i == 1 {
+							aircraft.Aircrafts = aircraft.Aircrafts[:1]
+						} else {
+							aircraft.Aircrafts = aircraft.Aircrafts[2:]
+						}
+						i--
+					}
 				}
 			}
 		}
